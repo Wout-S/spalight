@@ -298,8 +298,10 @@ warning backtrace on
                     
                     % backwards compatibility: 
                     %compensate size of rls if size is smaller than element list
-                    if i>size(opt.rls,2)
-                        opt.rls(i).def = [];
+                    if isfield(opt, 'rls')
+                        if i>size(opt.rls,2)
+                            opt.rls(i).def = [];
+                        end
                     end
                     if isfield(opt,'rls') && ~isempty(opt.rls(i).def)            
                         Flex=Flex(~ismember(Flex,opt.rls(i).def));          % remove flexible deformations that are released
@@ -1011,6 +1013,7 @@ warning backtrace on
                 opt = varargin{5};
         end
         
+        
         %BEGIN NOT-SILENT MODE BLOCK
         if ~(exist('opt','var') && isstruct(opt) && isfield(opt,'silent') && opt.silent==1) %checks are skipped in silent mode
             
@@ -1375,13 +1378,6 @@ warning backtrace on
                                     (eprops(i).flex==-1)+(eprops(i).flex==-2)+(eprops(i).flex==-3)+(eprops(i).flex==-4)+(eprops(i).flex==-5)+(eprops(i).flex==-6))==0)
                                 err('Invalid deformation mode in eprops(%u).flex.',i)
                             end
-                            %determine whether to attempt autosolve
-                            if any(eprops(i).flex<0)       
-                                opt.autosolve = false;
-                            else
-                                opt.autosolve = true;
-                            end
-   
                                 
                             %check if field exist in structure
                             if ~(isfield(eprops(i),'cshape') && ~isempty(eprops(i).cshape)); err('Property cshape is not defined in eprops(%u)',i);     end
@@ -1495,10 +1491,9 @@ warning backtrace on
                     end
                 end
                 
-                %CHECK RLS INPUT VARIABLE % backwards compatibility
+                %CHECK RLS INPUT VARIABLE 
                 if (isfield(opt,'rls') && ~isempty(opt.rls))
                     ensure(all(ismember(fieldnames(opt.rls),{'def'})),'Unknown field in rls; only def field is allowed.');
-                    opt.autosolve = false;
                     for i=1:size(opt.rls,2)
                         if ~isempty(opt.rls(i).def)
                             validateattributes(opt.rls(i).def,{'double'},{'vector'},'',   sprintf('def property in rls(%u)',i));
@@ -1507,9 +1502,6 @@ warning backtrace on
                             end
                         end
                     end
-                else
-                    opt.autosolve = true;
-                    opt.rls=[];
                 end
                 
                 %CHECK TRANSFER FIELD
@@ -1567,6 +1559,27 @@ warning backtrace on
             end
             
         end %END NOT-SILENT MODE BLOCK
+        
+                % check for autosolve
+        if ~isfield(opt,'rls')
+            opt.autosolve = true;
+            opt.rls = [];
+        else
+            opt.autosolve = false;
+        end
+        if exist('eprops','var')
+            for i=1:size(eprops,2)
+                if (isfield(eprops(i),'flex') && ~isempty(eprops(i).flex))
+                      %determine whether to attempt autosolve
+                    if any(eprops(i).flex<0)       
+                       opt.autosolve = false;
+                    else
+                       opt.autosolve = true;
+                       opt.rls = [];
+                    end
+                end
+            end
+        end
         
         % assign output
         switch nargin
