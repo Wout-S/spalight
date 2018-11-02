@@ -122,15 +122,6 @@ else
     err('Unsupported simulation mode, use opt.mode = 10 or 3 instead.')
 end
 
-%determine whether to attempt autosolve
-if ~isfield(opt,'rls')
-    opt.autosolve = true;
-    opt.rls = [];
-else
-    opt.autosolve = false;
-end
-
-
 %% CHECK EXISTENCE OF REQUIRED FUNCTIONS
 ensure(exist('spacar','file') == 3,'spacar() is not in your path.');
 ensure((exist('spavisual','file') == 2 || exist('spavisual','file') == 6),'spavisual() is not in your path.');
@@ -216,7 +207,7 @@ catch
             BigD    = getfrsbf(sbd,'bigd',1);
             Dcc     = BigD( 1:(nep(1)+nep(3)+nep(4)) , nxp(1)+(1:nxp(2)) );
             if (size(Dcc,1) ~= size(Dcc,2) || rank(Dcc) < size(Dcc,1) || det(Dcc) == 0)
-                warn('Overconstraints could not be solved automatically; Try setting releases (opt.rls) manually.')
+                warn('Overconstraints could not be solved automatically; Try setting releases in eprops.flex manually.')
                 %get the overconstraints in the system (without any autosolve attempt)
                 %so build dat file again without any release attempts, do mode 0, get overconstraints
                 if opt.autosolve
@@ -302,7 +293,20 @@ warning backtrace on
                     i_set = j;
                     
                     %get element information
-                    Flex        = eprops(j).flex;       %flexibility of this element
+                    Flex        = eprops(j).flex(eprops(j).flex>0);       %flexibility of this element
+                    Rlse        = -eprops(j).flex(eprops(j).flex<0);       %released modes of this element
+                    
+                    % backwards compatibility: 
+                    %compensate size of rls if size is smaller than element list
+                    if i>size(opt.rls,2)
+                        opt.rls(i).def = [];
+                    end
+                    if isfield(opt,'rls') && ~isempty(opt.rls(i).def)            
+                        Flex=Flex(~ismember(Flex,opt.rls(i).def));          % remove flexible deformations that are released
+                        Rlse=unique([Rlse opt.rls(i).def]);                % collect all released deformations
+                        
+                    end
+                    
                     if isfield(eprops(j),'nbeams')
                         N = eprops(j).nbeams;           %number of beams per userdefined element
                     else
@@ -324,6 +328,7 @@ warning backtrace on
                 N = 1;
                 Orien = [0 1 0];
                 Flex = [];
+                Rlse = [];
             end
             
             if N>1 %if more than 1 beam
@@ -388,40 +393,35 @@ warning backtrace on
             %for the last beam only, add dyne and/or rlse
             
 
-            if ((~isfield(opt,'rls') || isempty(opt.rls)) && ~isempty(Flex)) %if no rlse, add all flexible deformation modes as dyne
+            if isempty(Rlse) && ~isempty(Flex) %if no rlse, add all flexible deformation modes as dyne
                 pr_D = sprintf('%s\nDYNE\t\t%3u\t',pr_D,e_count);
                 for m=1:length(Flex)    %loop over all flexible deformation modes
                     pr_D = sprintf('%s\t%3u',pr_D,Flex(m));
                 end
             else%if some rls are specified
-                %compensate size of rls if size is smaller than element list
-                if i>size(opt.rls,2)
-                    opt.rls(i).def = [];
-                end
                 
+               
                 % add dyne
                 if ~isempty(Flex)                           %if some flexibility is specified
                     dyn_added = false;                      %reset identifier to check if string 'dyne' is added
                     for m=1:length(Flex)                    %loop over all flexible deformation modes
-                        if ~(sum(opt.rls(i).def==Flex(m))>0)   %if flexible deformation mode is not a rlse, it is dyne
                             if ~dyn_added                   %only add string 'dyne' if it is not yet added
                                 pr_D = sprintf('%s\nDYNE\t\t%3u\t',pr_D,e_count);
                                 dyn_added = true;           %set 'dyne' identifier
                             end
                             pr_D = sprintf('%s\t%3u',pr_D,Flex(m));
-                        end
                     end
                 end
                 
                 
                 % add rlse
                 rlse_added = false;                    %reset identifier to check if string 'rlse' is added
-                for m=1:length(opt.rls(i).def)             %loop over all released deformation modes
+                for m=1:length(Rlse)             %loop over all released deformation modes
                     if ~rlse_added                     %only add string 'rlse' if it is not yet added
                         pr_D = sprintf('%s\nRLSE\t\t%3u\t',pr_D,e_count);
                         rlse_added = true;
                     end
-                    pr_D = sprintf('%s\t%3u',pr_D,opt.rls(i).def(m));
+                    pr_D = sprintf('%s\t%3u',pr_D,Rlse(m));
                 end
            end
             
@@ -1367,14 +1367,22 @@ warning backtrace on
                         
                         %check for mandatory fields when flex field is present
                         if (isfield(eprops(i),'flex') && ~isempty(eprops(i).flex))
-                            validateattributes(eprops(i).flex,{'double'},{'vector','positive'},'',sprintf('flex property in eprops(%u)',i));
+%                             validateattributes(eprops(i).flex,{'double'},{'vector'},'',sprintf('flex property in eprops(%u)',i));
                             
                             %check if values for flex are valid
                             validateattributes(eprops(i).flex,{'double'},{'vector'},'',  sprintf('flex property in eprops(%u)',i));
-                            if any(((eprops(i).flex==1)+(eprops(i).flex==2)+(eprops(i).flex==3)+(eprops(i).flex==4)+(eprops(i).flex==5)+(eprops(i).flex==6))==0)
+                            if any(((eprops(i).flex==1)+(eprops(i).flex==2)+(eprops(i).flex==3)+(eprops(i).flex==4)+(eprops(i).flex==5)+(eprops(i).flex==6)+...
+                                    (eprops(i).flex==-1)+(eprops(i).flex==-2)+(eprops(i).flex==-3)+(eprops(i).flex==-4)+(eprops(i).flex==-5)+(eprops(i).flex==-6))==0)
                                 err('Invalid deformation mode in eprops(%u).flex.',i)
                             end
-                            
+                            %determine whether to attempt autosolve
+                            if any(eprops(i).flex<0)       
+                                opt.autosolve = false;
+                            else
+                                opt.autosolve = true;
+                            end
+   
+                                
                             %check if field exist in structure
                             if ~(isfield(eprops(i),'cshape') && ~isempty(eprops(i).cshape)); err('Property cshape is not defined in eprops(%u)',i);     end
                             if ~(isfield(eprops(i),'emod') && ~isempty(eprops(i).emod)); err('Property emod is not defined in eprops(%u)',i);     end
@@ -1450,7 +1458,7 @@ warning backtrace on
             
             %CHECK OPTIONAL ARGUMENTS
             if (exist('opt','var') && ~isempty(opt))
-                allowed_opts = {'filename','gravity','silent','calcbuck','showinputonly','loadsteps','rls','mode','transfer','calccompl','customvis'};
+                allowed_opts = {'filename','gravity','silent','calcbuck','showinputonly','loadsteps','rls','mode','transfer','calccompl','customvis','autosolve'};
                 supplied_opts = fieldnames(opt);
                 unknown_opts_i = ~ismember(supplied_opts,allowed_opts);
                 if any(unknown_opts_i)
@@ -1487,10 +1495,10 @@ warning backtrace on
                     end
                 end
                 
-                %CHECK RLS INPUT VARIABLE
+                %CHECK RLS INPUT VARIABLE % backwards compatibility
                 if (isfield(opt,'rls') && ~isempty(opt.rls))
                     ensure(all(ismember(fieldnames(opt.rls),{'def'})),'Unknown field in rls; only def field is allowed.');
-                    
+                    opt.autosolve = false;
                     for i=1:size(opt.rls,2)
                         if ~isempty(opt.rls(i).def)
                             validateattributes(opt.rls(i).def,{'double'},{'vector'},'',   sprintf('def property in rls(%u)',i));
@@ -1499,6 +1507,9 @@ warning backtrace on
                             end
                         end
                     end
+                else
+                    opt.autosolve = true;
+                    opt.rls=[];
                 end
                 
                 %CHECK TRANSFER FIELD
