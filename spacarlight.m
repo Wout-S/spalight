@@ -305,7 +305,7 @@ warning backtrace on
                         end
                     end
                     if isfield(opt,'rls') && ~isempty(opt.rls(i).def)            
-                        Flex=Flex(~ismember(Flex,opt.rls(i).def));          % remove flexible deformations that are released
+                        Flexlast=Flexlast(~ismember(Flexlast,opt.rls(i).def));          % remove flexible deformations that are released
                         Rlse=unique([Rlse opt.rls(i).def]);                % collect all released deformations
                         
                     end
