@@ -293,7 +293,8 @@ warning backtrace on
                     i_set = j;
                     
                     %get element information
-                    Flex        = eprops(j).flex(eprops(j).flex>0);       %flexibility of this element
+                    Flex        = abs(eprops(j).flex); 
+                    Flexlast    = eprops(j).flex(eprops(j).flex>0);       %flexibility of this element
                     Rlse        = -eprops(j).flex(eprops(j).flex<0);       %released modes of this element
                     
                     % backwards compatibility: 
@@ -395,23 +396,23 @@ warning backtrace on
             %for the last beam only, add dyne and/or rlse
             
 
-            if isempty(Rlse) && ~isempty(Flex) %if no rlse, add all flexible deformation modes as dyne
+            if isempty(Rlse) && ~isempty(Flexlast) %if no rlse, add all flexible deformation modes as dyne
                 pr_D = sprintf('%s\nDYNE\t\t%3u\t',pr_D,e_count);
-                for m=1:length(Flex)    %loop over all flexible deformation modes
-                    pr_D = sprintf('%s\t%3u',pr_D,Flex(m));
+                for m=1:length(Flexlast)    %loop over all flexible deformation modes
+                    pr_D = sprintf('%s\t%3u',pr_D,Flexlast(m));
                 end
             else%if some rls are specified
                 
                
                 % add dyne
-                if ~isempty(Flex)                           %if some flexibility is specified
+                if ~isempty(Flexlast)                           %if some flexibility is specified
                     dyn_added = false;                      %reset identifier to check if string 'dyne' is added
-                    for m=1:length(Flex)                    %loop over all flexible deformation modes
+                    for m=1:length(Flexlast)                    %loop over all flexible deformation modes
                             if ~dyn_added                   %only add string 'dyne' if it is not yet added
                                 pr_D = sprintf('%s\nDYNE\t\t%3u\t',pr_D,e_count);
                                 dyn_added = true;           %set 'dyne' identifier
                             end
-                            pr_D = sprintf('%s\t%3u',pr_D,Flex(m));
+                            pr_D = sprintf('%s\t%3u',pr_D,Flexlast(m));
                     end
                 end
                 
