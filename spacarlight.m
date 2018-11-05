@@ -1563,20 +1563,20 @@ warning backtrace on
         
                 % check for autosolve
         if ~isfield(opt,'rls')
-            opt.autosolve = true;
-            opt.rls = [];
-        else
-            opt.autosolve = false;
+            opt.rls=[];
+            opt.autosolve=true
         end
+        if ~isempty(opt.rls)
+            opt.autosolve=false
+            
+        end
+
         if exist('eprops','var')
             for i=1:size(eprops,2)
                 if (isfield(eprops(i),'flex') && ~isempty(eprops(i).flex))
                       %determine whether to attempt autosolve
                     if any(eprops(i).flex<0)       
-                       opt.autosolve = false;
-                    else
-                       opt.autosolve = true;
-                       opt.rls = [];
+                       opt.autosolve = false
                     end
                 end
             end
