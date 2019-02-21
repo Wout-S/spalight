@@ -959,7 +959,7 @@ warning backtrace on
                                 
                                 %Check if kth spacar light element is flexible
                                 for i=1:size(eprops,2) %loop over all element property sets to check flexibility
-                                    if (isfield(eprops(i),'flex') && ~isempty(eprops(i).flex) && any(eprops(i).elems==k)) %if kth element is flexible
+                                    if (isfield(eprops(i),'flex') && ~isempty(eprops(i).flex) && any(eprops(i).elems==k)&& ismember(defmode,eprops(i).flex)) %if kth element is flexible and desired release mode is originally flexible) %if kth element is flexible
                                         if rlse(k,defmode) == 0 %if this deformation is not yet released
                                             IDlist(def_id) = []; %update IDlist for deformation tracking
                                             Dcc(def_id,:) = []; %reduce Dcc matrix to remove this overconstrained
